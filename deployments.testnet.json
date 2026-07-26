@@ -1,0 +1,18 @@
+{
+  "badgeRegistry": {
+    "contractId": "CDXVVODRYJAN5IALGRGX2PDVORKURYAQG5AJNF4M4HCN42RES3OS6TV4",
+    "deployTxHash": "777de5e21d65af363ac8a56635d96e091969c36f475914a4a436208326206b24",
+    "wasmHash": "c638575224321f9c9ff0058141b55633cef846fde9b7197fccbbe0a29c48483b"
+  },
+  "builderStreak": {
+    "contractId": "CA5LEQGMOZOSMSEOL5BXJBR3DLDN6G3EVS4EY7AKZ2OYV7MUEH2MB4XW",
+    "deployTxHash": "2727bf27252a7c21ce1312f96c8d8f059285024877e43b809f9d393b3c65c9e6",
+    "wasmHash": "0b5c6a40f3c09dfac2317aa7a18fd21ff92417f2ffd9fbcfd14d16259164aa60"
+  },
+  "admin": "GDLLMOUYQ655IMYFO56ITZLLSX57ZTNKD67GA723E7GMCZJHXJBFXNID",
+  "initialization": {
+    "registryInitTxHash": "3d9d300ee597db46a80cbc45bd0520046808dec0bee3aec47990818c157b657e",
+    "streakInitTxHash": "b8f6aa48eda4ab92a6d3717d89203ce030bccaecea6d81db91982b33c3667960",
+    "firstActivityTxHash": "b87b96a3f4c01aa450bb2db7b34c4799e06a955daeed4fb09027e517b08cf7cd"
+  }
+}
