@@ -42,7 +42,7 @@ pnpm build
 pnpm dev
 ```
 
-Copy `.env.example` to `.env` and add the two deployed contract IDs. A read-only profile loads without Freighter; connecting Freighter enables the `Log activity` transaction flow.
+Copy `.env.example` to `.env` and add the two deployed contract IDs. The app requires a connected Freighter wallet before it loads the profile or enables the `Log activity` transaction flow. Freighter must be configured for Stellar Testnet.
 
 ## Deploy a fresh pair
 

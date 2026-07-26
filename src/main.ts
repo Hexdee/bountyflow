@@ -1,24 +1,19 @@
 import "./style.css";
+import { getNetworkDetails, isConnected, requestAccess, signTransaction } from "@stellar/freighter-api";
 import { Account, BASE_FEE, Contract, Horizon, Networks, nativeToScVal, rpc, scValToNative, TransactionBuilder } from "@stellar/stellar-sdk";
 import { badgeName, formatError, shortAddress } from "./lib/format";
 
 const STREAK_ID = import.meta.env.VITE_STREAK_CONTRACT_ID || import.meta.env.VITE_CONTRACT_ID || "REPLACE_WITH_STREAK_CONTRACT_ID";
 const REGISTRY_ID = import.meta.env.VITE_REGISTRY_CONTRACT_ID || "REPLACE_WITH_REGISTRY_CONTRACT_ID";
-const FALLBACK_ACCOUNT = import.meta.env.VITE_SOURCE_ACCOUNT || "GDLLMOUYQ655IMYFO56ITZLLSX57ZTNKD67GA723E7GMCZJHXJBFXNID";
 const RPC_URL = "https://soroban-testnet.stellar.org";
 const HORIZON_URL = "https://horizon-testnet.stellar.org";
 const NETWORK_PASSPHRASE = Networks.TESTNET;
-
-type FreighterApi = {
-  getAddress: () => Promise<{ address: string }>;
-  signTransaction: (xdr: string, options: { networkPassphrase: string }) => Promise<{ signedTxXdr: string }>;
-};
-declare global { interface Window { freighterApi?: FreighterApi } }
 
 const rpcServer = new rpc.Server(RPC_URL);
 const horizon = new Horizon.Server(HORIZON_URL);
 let walletAddress = "";
 let lastEventIds = new Set<string>();
+let syncTimer: number | undefined;
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
@@ -32,9 +27,9 @@ app.innerHTML = `
     <section class="grid">
       <div>
         <article class="card card-pad">
-          <div class="section-heading"><div><h2>Your builder profile</h2><div class="muted">Connect Freighter to write to Testnet.</div></div><button id="connect" class="button secondary">Connect wallet</button></div>
-          <div class="wallet-row"><span id="wallet" class="wallet-address">Read-only preview · ${shortAddress(FALLBACK_ACCOUNT)}</span><button id="increment" class="button" disabled>Log activity</button></div>
-          <p id="status" class="status" aria-live="polite">Loading on-chain profile…</p>
+          <div class="section-heading"><div><h2>Your builder profile</h2><div class="muted">Connect Freighter before accessing Testnet data.</div></div><button id="connect" class="button secondary">Connect wallet</button></div>
+          <div class="wallet-row"><span id="wallet" class="wallet-address">Wallet connection required</span><button id="increment" class="button" disabled>Log activity</button></div>
+          <p id="status" class="status" aria-live="polite">Connect Freighter to load your on-chain profile.</p>
           <a id="tx" class="tx-link hidden" target="_blank" rel="noreferrer"></a>
         </article>
         <article class="card card-pad action-card">
@@ -70,7 +65,10 @@ const statusEl = $("#status");
 const txEl = $("#tx");
 
 function setStatus(message: string, kind = "") { statusEl.textContent = message; statusEl.className = `status ${kind}`; }
-function activeAddress() { return walletAddress || FALLBACK_ACCOUNT; }
+function activeAddress() {
+  if (!walletAddress) throw new Error("Connect Freighter before loading your profile.");
+  return walletAddress;
+}
 function ensureConfigured() {
   if (STREAK_ID.startsWith("REPLACE") || REGISTRY_ID.startsWith("REPLACE")) throw new Error("Testnet contract addresses are not configured yet.");
 }
@@ -123,20 +121,27 @@ async function refreshEvents() {
 
 connectButton.addEventListener("click", async () => {
   try {
-    if (!window.freighterApi) throw new Error("Freighter was not detected. Install the wallet extension to write to Testnet.");
-    const response = await window.freighterApi.getAddress();
-    walletAddress = response.address;
+    const connection = await isConnected();
+    if (!connection.isConnected) throw new Error("Freighter was not detected. Open the Freighter extension and reload this page.");
+    const access = await requestAccess();
+    if (access.error) throw new Error(typeof access.error === "string" ? access.error : access.error.message);
+    const network = await getNetworkDetails();
+    if (network.error) throw new Error(typeof network.error === "string" ? network.error : network.error.message);
+    if (network.network !== "TESTNET") throw new Error("Switch Freighter to Stellar Testnet, then connect again.");
+    walletAddress = access.address;
     $("#wallet").textContent = walletAddress;
     incrementButton.removeAttribute("disabled");
     connectButton.textContent = "Wallet connected";
     setStatus("Wallet connected. You can now log a builder activity.", "success");
     await refreshProfile();
+    await refreshEvents();
+    if (syncTimer === undefined) syncTimer = window.setInterval(() => { void refresh(); }, 8000);
   } catch (error) { setStatus(formatError(error), "error"); }
 });
 
 incrementButton.addEventListener("click", async () => {
   try {
-    if (!window.freighterApi || !walletAddress) throw new Error("Connect Freighter first.");
+    if (!walletAddress) throw new Error("Connect Freighter first.");
     incrementButton.setAttribute("disabled", "true");
     setStatus("Simulating the cross-contract activity call…");
     const source = await horizon.loadAccount(walletAddress);
@@ -146,7 +151,8 @@ incrementButton.addEventListener("click", async () => {
     const simulation = await rpcServer.simulateTransaction(raw);
     if (rpc.Api.isSimulationError(simulation)) throw new Error(simulation.error);
     const prepared = rpc.assembleTransaction(raw, simulation).build();
-    const signed = await window.freighterApi.signTransaction(prepared.toXDR(), { networkPassphrase: NETWORK_PASSPHRASE });
+    const signed = await signTransaction(prepared.toXDR(), { networkPassphrase: NETWORK_PASSPHRASE, address: walletAddress });
+    if (signed.error) throw new Error(typeof signed.error === "string" ? signed.error : signed.error.message);
     const sent = await rpcServer.sendTransaction(TransactionBuilder.fromXDR(signed.signedTxXdr, NETWORK_PASSPHRASE));
     if (sent.status === "ERROR") throw new Error("The network rejected the transaction.");
     setStatus("Transaction submitted. Waiting for confirmation…");
@@ -164,5 +170,6 @@ async function refresh() {
   try { await Promise.all([refreshProfile(), refreshEvents()]); }
   catch (error) { setStatus(formatError(error), "error"); }
 }
-void refresh();
-window.setInterval(() => { void refresh(); }, 8000);
+void isConnected().then((connection) => {
+  if (connection.isConnected) setStatus("Freighter detected. Connect to continue.", "success");
+}).catch(() => undefined);
