@@ -44,6 +44,8 @@ pnpm dev
 
 Copy `.env.example` to `.env` and add the two deployed contract IDs. The app requires a connected Freighter wallet before it loads the profile or enables the `Log activity` transaction flow. Freighter must be configured for Stellar Testnet.
 
+If the app reports that the account was not found, copy the connected `G...` address from Freighter and fund it once with [Stellar Testnet Friendbot](https://friendbot.stellar.org/). An unfunded Testnet account is returned as HTTP 404 by Horizon and cannot submit transactions.
+
 ## Deploy a fresh pair
 
 The deploy script requires a funded Testnet identity exposed only for the command invocation:

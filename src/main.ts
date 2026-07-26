@@ -69,12 +69,24 @@ function activeAddress() {
   if (!walletAddress) throw new Error("Connect Freighter before loading your profile.");
   return walletAddress;
 }
+
+async function loadWalletAccount() {
+  try {
+    return await horizon.loadAccount(activeAddress());
+  } catch (error) {
+    const message = formatError(error);
+    if (/not found|404/i.test(message)) {
+      throw new Error("This Freighter account is not funded on Stellar Testnet. Fund it with Friendbot, then connect again.");
+    }
+    throw error;
+  }
+}
 function ensureConfigured() {
   if (STREAK_ID.startsWith("REPLACE") || REGISTRY_ID.startsWith("REPLACE")) throw new Error("Testnet contract addresses are not configured yet.");
 }
 
 async function simulateCall(contractId: string, method: string, args: unknown[], types: string[]) {
-  const source = await horizon.loadAccount(activeAddress());
+  const source = await loadWalletAccount();
   const account = new Account(source.accountId(), source.sequence);
   const operation = new Contract(contractId).call(...[method, ...args.map((arg, index) => nativeToScVal(arg, { type: types[index] }))]);
   const transaction = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: NETWORK_PASSPHRASE }).addOperation(operation).setTimeout(30).build();
@@ -130,13 +142,19 @@ connectButton.addEventListener("click", async () => {
     if (network.network !== "TESTNET") throw new Error("Switch Freighter to Stellar Testnet, then connect again.");
     walletAddress = access.address;
     $("#wallet").textContent = walletAddress;
-    incrementButton.removeAttribute("disabled");
     connectButton.textContent = "Wallet connected";
     setStatus("Wallet connected. You can now log a builder activity.", "success");
     await refreshProfile();
     await refreshEvents();
+    incrementButton.removeAttribute("disabled");
     if (syncTimer === undefined) syncTimer = window.setInterval(() => { void refresh(); }, 8000);
-  } catch (error) { setStatus(formatError(error), "error"); }
+  } catch (error) {
+    walletAddress = "";
+    $("#wallet").textContent = "Wallet connection required";
+    connectButton.textContent = "Connect wallet";
+    incrementButton.setAttribute("disabled", "true");
+    setStatus(formatError(error), "error");
+  }
 });
 
 incrementButton.addEventListener("click", async () => {
@@ -144,7 +162,7 @@ incrementButton.addEventListener("click", async () => {
     if (!walletAddress) throw new Error("Connect Freighter first.");
     incrementButton.setAttribute("disabled", "true");
     setStatus("Simulating the cross-contract activity call…");
-    const source = await horizon.loadAccount(walletAddress);
+    const source = await loadWalletAccount();
     const account = new Account(source.accountId(), source.sequence);
     const operation = new Contract(STREAK_ID).call("increment", nativeToScVal(walletAddress, { type: "address" }));
     const raw = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: NETWORK_PASSPHRASE }).addOperation(operation).setTimeout(60).build();
