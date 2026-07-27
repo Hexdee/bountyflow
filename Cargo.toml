@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["contracts/builder-streak", "contracts/badge-registry"]
+members = ["contracts/bounty-escrow", "contracts/reputation"]
 
 [workspace.dependencies]
 soroban-sdk = "26"

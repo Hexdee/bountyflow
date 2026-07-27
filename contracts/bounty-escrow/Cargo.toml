@@ -1,15 +1,14 @@
 [package]
-name = "badge-registry"
-version = "0.2.0"
+name = "bounty-escrow"
+version = "0.1.0"
 edition = "2021"
-publish = false
 
 [lib]
 crate-type = ["cdylib", "rlib"]
-doctest = false
 
 [dependencies]
 soroban-sdk = { workspace = true }
 
 [dev-dependencies]
+reputation = { path = "../reputation" }
 soroban-sdk = { workspace = true, features = ["testutils"] }
