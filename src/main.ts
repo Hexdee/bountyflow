@@ -1,193 +1,77 @@
 import "./style.css";
 import { getNetworkDetails, isConnected, requestAccess, signTransaction } from "@stellar/freighter-api";
 import { Account, BASE_FEE, Contract, Horizon, Networks, nativeToScVal, rpc, scValToNative, TransactionBuilder } from "@stellar/stellar-sdk";
-import { badgeName, formatError, shortAddress } from "./lib/format";
+import { formatError, shortAddress, stellarFromStroops } from "./lib/format";
 
-const STREAK_ID = import.meta.env.VITE_STREAK_CONTRACT_ID || import.meta.env.VITE_CONTRACT_ID || "REPLACE_WITH_STREAK_CONTRACT_ID";
-const REGISTRY_ID = import.meta.env.VITE_REGISTRY_CONTRACT_ID || "REPLACE_WITH_REGISTRY_CONTRACT_ID";
+const ESCROW_ID = import.meta.env.VITE_ESCROW_CONTRACT_ID || "REPLACE_WITH_ESCROW_CONTRACT_ID";
+const REPUTATION_ID = import.meta.env.VITE_REPUTATION_CONTRACT_ID || "REPLACE_WITH_REPUTATION_CONTRACT_ID";
 const RPC_URL = "https://soroban-testnet.stellar.org";
 const HORIZON_URL = "https://horizon-testnet.stellar.org";
-const NETWORK_PASSPHRASE = Networks.TESTNET;
-
+const NETWORK = Networks.TESTNET;
 const rpcServer = new rpc.Server(RPC_URL);
 const horizon = new Horizon.Server(HORIZON_URL);
 let walletAddress = "";
-let lastEventIds = new Set<string>();
 let syncTimer: number | undefined;
+let seenEvents = new Set<string>();
+let selectedId = 0;
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 app.innerHTML = `
-  <div class="app-shell">
-    <header class="topbar"><div class="brand">RISE IN · ORANGE BELT</div><div class="network-pill">● Stellar Testnet</div></header>
-    <section class="hero">
-      <div class="eyebrow">BUILDER STREAK · EVENT-DRIVEN DAPP</div>
-      <h1>Ship activity.<br />Earn your badge.</h1>
-      <p class="hero-copy">A production-shaped Soroban dApp for builders. Every authenticated activity is recorded by one contract, forwarded to a second registry, and surfaced here through live on-chain events.</p>
-    </section>
-    <section class="grid">
-      <div>
-        <article class="card card-pad">
-          <div class="section-heading"><div><h2>Your builder profile</h2><div class="muted">Connect Freighter before accessing Testnet data.</div></div><button id="connect" class="button secondary">Connect wallet</button></div>
-          <div class="wallet-row"><span id="wallet" class="wallet-address">Wallet connection required</span><button id="increment" class="button" disabled>Log activity</button></div>
-          <p id="status" class="status" aria-live="polite">Connect Freighter to load your on-chain profile.</p>
-          <a id="tx" class="tx-link hidden" target="_blank" rel="noreferrer"></a>
-        </article>
-        <article class="card card-pad action-card">
-          <div class="section-heading"><div><h2>Live activity stream</h2><div class="muted">Polling Soroban RPC every 8 seconds.</div></div><span id="sync" class="muted">Syncing…</span></div>
-          <div id="events" class="event-list"><div class="empty">Waiting for Builder Streak events…</div></div>
-        </article>
-      </div>
-      <aside>
-        <article class="card card-pad">
-          <div class="eyebrow">CURRENT STREAK</div>
-          <div id="count" class="streak-number">—</div>
-          <div class="streak-label">verified builder activities</div>
-          <div class="progress"><span id="progress"></span></div>
-          <div class="stat-line"><span>Next badge</span><strong id="badge">Loading…</strong></div>
-          <div class="stat-line"><span>Network total</span><strong id="total">—</strong></div>
-        </article>
-        <article class="card card-pad action-card">
-          <div class="eyebrow">CONTRACT TOPOLOGY</div>
-          <p class="muted">Builder Streak → Badge Registry</p>
-          <div class="stat-line"><span>Streak</span><a href="https://stellar.expert/explorer/testnet/contract/${STREAK_ID}" target="_blank" rel="noreferrer">${shortAddress(STREAK_ID)} ↗</a></div>
-          <div class="stat-line"><span>Registry</span><a href="https://stellar.expert/explorer/testnet/contract/${REGISTRY_ID}" target="_blank" rel="noreferrer">${shortAddress(REGISTRY_ID)} ↗</a></div>
-        </article>
-      </aside>
-    </section>
-    <footer class="footer"><span>Orange Belt submission · production architecture practice</span><a href="https://developers.stellar.org/docs/build/smart-contracts/getting-started/setup" target="_blank" rel="noreferrer">Stellar docs ↗</a></footer>
-  </div>
-`;
+<div class="app-shell">
+  <header class="topbar"><a class="brand" href="#">BOUNTY<span>FLOW</span></a><nav><a href="#marketplace">Marketplace</a><a href="#how">How it works</a></nav><div class="network-pill">● Stellar Testnet</div><button id="connect" class="button secondary">Connect Freighter</button></header>
+  <main>
+    <section class="hero"><div class="eyebrow">OPEN WORK · VERIFIED DELIVERY · XLM ESCROW</div><h1>Fund great work.<br><em>Ship with confidence.</em></h1><p>Discover focused Web3 bounties, lock the reward in a Soroban escrow, and pay only when the work is approved.</p><div class="hero-actions"><a class="button" href="#marketplace">Explore bounties <span>↗</span></a><a class="text-link" href="#create">Post a bounty</a></div><div class="trust-row"><span>✦ Non-custodial escrow</span><span>✦ On-chain reputation</span><span>✦ Real-time activity</span></div></section>
+    <section id="marketplace" class="workspace-grid"><div class="main-column">
+      <div class="section-heading"><div><div class="eyebrow">LIVE MARKETPLACE</div><h2>Open opportunities</h2></div><span id="sync" class="muted">Connect wallet to sync</span></div>
+      <div id="bounties" class="bounty-grid"><div class="loading-card"><span class="spinner"></span><p>Connect Freighter to load the marketplace.</p></div></div>
+      <article id="detail" class="card detail-card hidden"></article>
+    </div><aside class="side-column"><article class="card profile-card"><div class="section-heading"><div><div class="eyebrow">YOUR BUILDER PROFILE</div><h2 id="wallet-label">Wallet required</h2></div><span class="profile-dot">●</span></div><div class="profile-stats"><div><strong id="completions">—</strong><span>completed</span></div><div><strong id="earned">—</strong><span>XLM earned</span></div></div><p id="status" class="status">Connect Freighter before accessing Testnet data.</p></article>
+      <article id="create" class="card create-card"><div class="eyebrow">FOR PROJECT OWNERS</div><h2>Post a bounty</h2><p class="muted">Fund the reward now. It stays locked until your approval.</p><form id="create-form"><label>Title<input id="title" required maxlength="48" placeholder="e.g. Build a Soroban indexer" /></label><label>Brief<textarea id="description" required maxlength="240" placeholder="Describe the outcome and acceptance criteria"></textarea></label><div class="form-row"><label>Reward (XLM)<input id="reward" required type="number" min="0.1" step="0.1" value="2" /></label><label>Due in days<input id="days" required type="number" min="1" max="90" value="14" /></label></div><button class="button full" type="submit">Fund & publish bounty <span>↗</span></button></form></article></aside></section>
+    <section id="how" class="how-section"><div><div class="eyebrow">A BETTER WAY TO SHIP</div><h2>From brief to payout,<br/>every step is accountable.</h2></div><div class="steps"><div><span>01</span><h3>Fund</h3><p>Owners lock XLM in a transparent Soroban escrow.</p></div><div><span>02</span><h3>Deliver</h3><p>One builder is assigned and submits a verifiable proof link.</p></div><div><span>03</span><h3>Approve</h3><p>Approval releases funds and updates the builder’s reputation.</p></div></div></section>
+    <section class="activity-section"><div class="section-heading"><div><div class="eyebrow">ON-CHAIN SIGNAL</div><h2>Live activity</h2></div><span class="muted">Soroban RPC event stream</span></div><div id="events" class="event-list"><div class="empty">Activity will appear after the first wallet connection.</div></div></section>
+  </main><footer><span>BOUNTYFLOW · ORANGE BELT SUBMISSION</span><span>Built on Stellar Soroban</span></footer>
+</div>`;
 
 const $ = <T extends Element>(selector: string) => document.querySelector<T>(selector)!;
-const connectButton = $("#connect");
-const incrementButton = $("#increment");
+const connectButton = $("#connect") as HTMLButtonElement;
 const statusEl = $("#status");
-const txEl = $("#tx");
 
 function setStatus(message: string, kind = "") { statusEl.textContent = message; statusEl.className = `status ${kind}`; }
-function activeAddress() {
-  if (!walletAddress) throw new Error("Connect Freighter before loading your profile.");
-  return walletAddress;
+function configured() { return !ESCROW_ID.startsWith("REPLACE") && !REPUTATION_ID.startsWith("REPLACE"); }
+function active() { if (!walletAddress) throw new Error("Connect Freighter before using BountyFlow."); return walletAddress; }
+async function account() {
+  try { return await horizon.loadAccount(active()); }
+  catch (error) { if (/not found|404/i.test(formatError(error))) throw new Error("This wallet is not funded on Stellar Testnet. Fund it with Friendbot, then reconnect."); throw error; }
 }
-
-async function loadWalletAccount() {
-  try {
-    return await horizon.loadAccount(activeAddress());
-  } catch (error) {
-    const message = formatError(error);
-    if (/not found|404/i.test(message)) {
-      throw new Error("This Freighter account is not funded on Stellar Testnet. Fund it with Friendbot, then connect again.");
-    }
-    throw error;
-  }
+function argsFor(args: unknown[], types: string[]) { return args.map((arg, i) => nativeToScVal(arg, { type: types[i] })); }
+async function simulate(contractId: string, method: string, args: unknown[], types: string[]) {
+  const source = await account();
+  const tx = new TransactionBuilder(new Account(source.accountId(), source.sequence), { fee: BASE_FEE, networkPassphrase: NETWORK }).addOperation(new Contract(contractId).call(method, ...argsFor(args, types))).setTimeout(60).build();
+  const result = await rpcServer.simulateTransaction(tx);
+  if (rpc.Api.isSimulationError(result)) throw new Error(result.error);
+  if (!result.result) throw new Error("Soroban returned no contract result.");
+  return scValToNative(result.result.retval) as any;
 }
-function ensureConfigured() {
-  if (STREAK_ID.startsWith("REPLACE") || REGISTRY_ID.startsWith("REPLACE")) throw new Error("Testnet contract addresses are not configured yet.");
+async function write(contractId: string, method: string, args: unknown[], types: string[]) {
+  const source = await account();
+  const tx = new TransactionBuilder(new Account(source.accountId(), source.sequence), { fee: BASE_FEE, networkPassphrase: NETWORK }).addOperation(new Contract(contractId).call(method, ...argsFor(args, types))).setTimeout(60).build();
+  const simulated = await rpcServer.simulateTransaction(tx);
+  if (rpc.Api.isSimulationError(simulated)) throw new Error(simulated.error);
+  const prepared = rpc.assembleTransaction(tx, simulated).build();
+  const signed = await signTransaction(prepared.toXDR(), { networkPassphrase: NETWORK, address: active() });
+  if (signed.error) throw new Error(typeof signed.error === "string" ? signed.error : signed.error.message);
+  const sent = await rpcServer.sendTransaction(TransactionBuilder.fromXDR(signed.signedTxXdr, NETWORK));
+  if (sent.status === "ERROR") throw new Error("The network rejected this transaction.");
+  return sent.hash;
 }
-
-async function simulateCall(contractId: string, method: string, args: unknown[], types: string[]) {
-  const source = await loadWalletAccount();
-  const account = new Account(source.accountId(), source.sequence);
-  const operation = new Contract(contractId).call(...[method, ...args.map((arg, index) => nativeToScVal(arg, { type: types[index] }))]);
-  const transaction = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: NETWORK_PASSPHRASE }).addOperation(operation).setTimeout(30).build();
-  const simulation = await rpcServer.simulateTransaction(transaction);
-  if (rpc.Api.isSimulationError(simulation)) throw new Error(simulation.error);
-  if (!simulation.result) throw new Error("RPC returned no contract result.");
-  return scValToNative(simulation.result.retval);
-}
-
-async function refreshProfile() {
-  ensureConfigured();
-  const [count, total, badge] = await Promise.all([
-    simulateCall(STREAK_ID, "get_count", [activeAddress()], ["address"]),
-    simulateCall(STREAK_ID, "get_total", [], []),
-    simulateCall(REGISTRY_ID, "get_badge", [activeAddress()], ["address"]),
-  ]);
-  const countNumber = Number(count);
-  $("#count").textContent = String(countNumber);
-  $("#total").textContent = String(total);
-  $("#badge").textContent = badgeName(Number(badge));
-  $("#progress").setAttribute("style", `width:${Math.min(100, (countNumber % 3) * 33.333 + (countNumber > 0 && countNumber % 3 === 0 ? 100 : 0))}%`);
-  if (!walletAddress) setStatus("Profile synced from Stellar Testnet.", "success");
-}
-
-async function refreshEvents() {
-  const latest = await rpcServer.getLatestLedger();
-  const response = await rpcServer.getEvents({ startLedger: Math.max(1, latest.sequence - 500), filters: [{ type: "contract", contractIds: [STREAK_ID, REGISTRY_ID] }], limit: 20 });
-  const events = response.events.filter((event) => !lastEventIds.has(event.id)).reverse();
-  events.forEach((event) => lastEventIds.add(event.id));
-  const container = $("#events");
-  if (events.length === 0 && lastEventIds.size === 0) { container.innerHTML = `<div class="empty">No recent events yet. Log the first activity.</div>`; }
-  if (events.length > 0) {
-    container.querySelector(".empty")?.remove();
-    const html = events.map((event) => {
-      const kind = String(scValToNative(event.topic[0]));
-      const value = String(scValToNative(event.value));
-      const builder = event.topic[1] ? String(scValToNative(event.topic[1])) : "builder";
-      return `<div class="event-row"><div class="event-icon">✦</div><div class="event-copy"><div class="event-title"><strong>${kind === "badge" ? "Badge Registry updated" : "Builder activity recorded"}</strong> · ${shortAddress(builder)}</div><div class="event-time">Level ${value} · ledger ${event.ledger} · <a href="https://stellar.expert/explorer/testnet/tx/${event.txHash}" target="_blank" rel="noreferrer">view transaction ↗</a></div></div></div>`;
-    }).join("");
-    container.insertAdjacentHTML("afterbegin", html);
-  }
-  $("#sync").textContent = `Synced ledger ${latest.sequence}`;
-}
-
-connectButton.addEventListener("click", async () => {
-  try {
-    const connection = await isConnected();
-    if (!connection.isConnected) throw new Error("Freighter was not detected. Open the Freighter extension and reload this page.");
-    const access = await requestAccess();
-    if (access.error) throw new Error(typeof access.error === "string" ? access.error : access.error.message);
-    const network = await getNetworkDetails();
-    if (network.error) throw new Error(typeof network.error === "string" ? network.error : network.error.message);
-    if (network.network !== "TESTNET") throw new Error("Switch Freighter to Stellar Testnet, then connect again.");
-    walletAddress = access.address;
-    $("#wallet").textContent = walletAddress;
-    connectButton.textContent = "Wallet connected";
-    setStatus("Wallet connected. You can now log a builder activity.", "success");
-    await refreshProfile();
-    await refreshEvents();
-    incrementButton.removeAttribute("disabled");
-    if (syncTimer === undefined) syncTimer = window.setInterval(() => { void refresh(); }, 8000);
-  } catch (error) {
-    walletAddress = "";
-    $("#wallet").textContent = "Wallet connection required";
-    connectButton.textContent = "Connect wallet";
-    incrementButton.setAttribute("disabled", "true");
-    setStatus(formatError(error), "error");
-  }
-});
-
-incrementButton.addEventListener("click", async () => {
-  try {
-    if (!walletAddress) throw new Error("Connect Freighter first.");
-    incrementButton.setAttribute("disabled", "true");
-    setStatus("Simulating the cross-contract activity call…");
-    const source = await loadWalletAccount();
-    const account = new Account(source.accountId(), source.sequence);
-    const operation = new Contract(STREAK_ID).call("increment", nativeToScVal(walletAddress, { type: "address" }));
-    const raw = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: NETWORK_PASSPHRASE }).addOperation(operation).setTimeout(60).build();
-    const simulation = await rpcServer.simulateTransaction(raw);
-    if (rpc.Api.isSimulationError(simulation)) throw new Error(simulation.error);
-    const prepared = rpc.assembleTransaction(raw, simulation).build();
-    const signed = await signTransaction(prepared.toXDR(), { networkPassphrase: NETWORK_PASSPHRASE, address: walletAddress });
-    if (signed.error) throw new Error(typeof signed.error === "string" ? signed.error : signed.error.message);
-    const sent = await rpcServer.sendTransaction(TransactionBuilder.fromXDR(signed.signedTxXdr, NETWORK_PASSPHRASE));
-    if (sent.status === "ERROR") throw new Error("The network rejected the transaction.");
-    setStatus("Transaction submitted. Waiting for confirmation…");
-    txEl.textContent = `Transaction: ${sent.hash}`;
-    txEl.setAttribute("href", `https://stellar.expert/explorer/testnet/tx/${sent.hash}`);
-    txEl.classList.remove("hidden");
-    await refreshProfile();
-    await refreshEvents();
-    setStatus("Activity recorded and forwarded to the Badge Registry.", "success");
-  } catch (error) { setStatus(formatError(error), "error"); }
-  finally { incrementButton.removeAttribute("disabled"); }
-});
-
-async function refresh() {
-  try { await Promise.all([refreshProfile(), refreshEvents()]); }
-  catch (error) { setStatus(formatError(error), "error"); }
-}
-void isConnected().then((connection) => {
-  if (connection.isConnected) setStatus("Freighter detected. Connect to continue.", "success");
-}).catch(() => undefined);
+function bountyStatus(value: any) { return typeof value === "object" && value !== null ? Object.keys(value)[0] : String(value); }
+function normalized(raw: any) { return { ...raw, id: Number(raw.id), reward: BigInt(raw.reward ?? 0), deadline: Number(raw.deadline), status: bountyStatus(raw.status), builder: raw.builder ?? null, proof: raw.proof ?? null }; }
+function shortText(value: string, length = 90) { return value.length > length ? `${value.slice(0, length - 1)}…` : value; }
+function cardMarkup(b: any) { const mine = b.creator === walletAddress; return `<button class="bounty-card ${b.status.toLowerCase()}" data-id="${b.id}"><div class="card-top"><span class="tag ${b.status.toLowerCase()}">${b.status}</span><span class="bounty-id">#${String(b.id).padStart(3, "0")}</span></div><h3>${b.title}</h3><p>${shortText(b.description)}</p><div class="card-bottom"><span><strong>${stellarFromStroops(b.reward)} XLM</strong><small>escrowed reward</small></span><span class="owner">${mine ? "Your bounty" : shortAddress(b.creator)}</span></div></button>`; }
+async function refreshBounties() { const total = Number(await simulate(ESCROW_ID, "get_total", [], [])); const list: any[] = []; for (let id = 1; id <= total; id += 1) { try { list.push(normalized(await simulate(ESCROW_ID, "get_bounty", [id], ["u64"]))); } catch { /* a cancelled or pruned id should not stop the feed */ } } $("#bounties").innerHTML = list.length ? list.reverse().map(cardMarkup).join("") : `<div class="empty">No bounties yet. Be the first project owner to post one.</div>`; document.querySelectorAll<HTMLButtonElement>("[data-id]").forEach((button) => button.addEventListener("click", () => void showDetail(Number(button.dataset.id)))); $("#sync").textContent = `Synced ${list.length} opportunities`; }
+async function showDetail(id: number) { selectedId = id; const b = normalized(await simulate(ESCROW_ID, "get_bounty", [id], ["u64"])); const canApply = b.status === "Open" && b.creator !== walletAddress; const canSubmit = b.status === "Assigned" && b.builder === walletAddress; const canApprove = b.status === "Submitted" && b.creator === walletAddress; $("#detail").innerHTML = `<div class="section-heading"><div><div class="eyebrow">BOUNTY #${String(b.id).padStart(3, "0")}</div><h2>${b.title}</h2></div><span class="tag ${b.status.toLowerCase()}">${b.status}</span></div><p class="detail-copy">${b.description}</p><div class="detail-meta"><span><small>Reward</small><strong>${stellarFromStroops(b.reward)} XLM</strong></span><span><small>Owner</small><strong>${shortAddress(b.creator)}</strong></span><span><small>Deadline</small><strong>Ledger ${b.deadline}</strong></span></div>${b.proof ? `<div class="proof"><small>Submitted proof</small><a href="${b.proof}" target="_blank" rel="noreferrer">${b.proof} ↗</a></div>` : ""}<div class="detail-actions">${canApply ? `<button id="apply" class="button">Apply to build ↗</button>` : ""}${canSubmit ? `<form id="submit-form" class="inline-form"><input id="proof" required placeholder="Paste PR or demo URL" /><button class="button">Submit proof ↗</button></form>` : ""}${canApprove ? `<button id="approve" class="button">Approve & release ${stellarFromStroops(b.reward)} XLM ↗</button>` : ""}${b.status === "Open" && b.creator === walletAddress ? `<button id="cancel" class="button danger">Cancel & refund</button>` : ""}${!canApply && !canSubmit && !canApprove && b.status !== "Paid" && b.status !== "Cancelled" ? `<span class="muted">Connect the eligible wallet to continue.</span>` : ""}</div>`; $("#detail").classList.remove("hidden"); $("#apply")?.addEventListener("click", () => void action("Applying to bounty…", "apply_bounty", [walletAddress, id], ["address", "u64"])); $("#approve")?.addEventListener("click", () => void action("Releasing escrow and updating reputation…", "approve_and_pay", [walletAddress, id], ["address", "u64"])); $("#cancel")?.addEventListener("click", () => void action("Refunding escrow…", "cancel_bounty", [walletAddress, id], ["address", "u64"])); $("#submit-form")?.addEventListener("submit", (event) => { event.preventDefault(); void action("Recording your proof…", "submit_work", [walletAddress, id, ($("#proof") as HTMLInputElement).value], ["address", "u64", "string"]); }); }
+async function action(message: string, method: string, args: unknown[], types: string[]) { try { setStatus(message); const hash = await write(ESCROW_ID, method, args, types); setStatus(`Confirmed on Testnet · ${shortAddress(hash)}`, "success"); await refreshBounties(); await refreshProfile(); await refreshEvents(); if (selectedId) await showDetail(selectedId); } catch (error) { setStatus(formatError(error), "error"); } }
+async function refreshProfile() { const profile = await simulate(REPUTATION_ID, "get_profile", [active()], ["address"]); $("#wallet-label").textContent = shortAddress(walletAddress); $("#completions").textContent = String(profile.completions ?? 0); $("#earned").textContent = stellarFromStroops(BigInt(profile.earned ?? 0)); }
+async function refreshEvents() { const latest = await rpcServer.getLatestLedger(); const result = await rpcServer.getEvents({ startLedger: Math.max(1, latest.sequence - 500), filters: [{ type: "contract", contractIds: [ESCROW_ID, REPUTATION_ID] }], limit: 30 }); const fresh = result.events.filter((event) => !seenEvents.has(event.id)); fresh.forEach((event) => seenEvents.add(event.id)); if (fresh.length) { const rows = fresh.reverse().map((event) => { const kind = String(scValToNative(event.topic[0])); const id = event.topic[2] ? String(scValToNative(event.topic[2])) : ""; return `<div class="event-row"><div class="event-icon">✦</div><div><strong>${kind === "complete" ? "Reputation updated" : `Bounty ${kind}`}</strong><span>${id ? `Bounty #${id} · ` : ""}ledger ${event.ledger} · <a href="https://stellar.expert/explorer/testnet/tx/${event.txHash}" target="_blank" rel="noreferrer">view tx ↗</a></span></div></div>`; }).join(""); $("#events").insertAdjacentHTML("afterbegin", rows); } $("#sync").textContent = `Live · ledger ${latest.sequence}`; }
+connectButton.addEventListener("click", async () => { try { if (!configured()) throw new Error("Testnet contracts are not configured yet."); const connection = await isConnected(); if (!connection.isConnected) throw new Error("Freighter was not detected. Open the extension and reload this page."); const access = await requestAccess(); if (access.error) throw new Error(typeof access.error === "string" ? access.error : access.error.message); const network = await getNetworkDetails(); if (network.error) throw new Error(typeof network.error === "string" ? network.error : network.error.message); if (network.network !== "TESTNET") throw new Error("Switch Freighter to Stellar Testnet, then connect again."); walletAddress = access.address; $("#wallet-label").textContent = shortAddress(walletAddress); connectButton.textContent = "Wallet connected"; setStatus("Wallet connected. Syncing escrow marketplace…", "success"); await Promise.all([refreshBounties(), refreshProfile(), refreshEvents()]); if (syncTimer === undefined) syncTimer = window.setInterval(() => { void Promise.all([refreshBounties(), refreshProfile(), refreshEvents()]).catch((error) => setStatus(formatError(error), "error")); }, 8000); } catch (error) { walletAddress = ""; setStatus(formatError(error), "error"); } });
+$("#create-form").addEventListener("submit", (event) => { event.preventDefault(); const reward = Number(($("#reward") as HTMLInputElement).value); const days = Number(($("#days") as HTMLInputElement).value); void action("Simulating XLM escrow funding…", "create_bounty", [walletAddress, ($("#title") as HTMLInputElement).value, ($("#description") as HTMLTextAreaElement).value, Math.round(reward * 10_000_000), Math.round(Date.now() / 1000) + days * 86400], ["address", "string", "string", "i128", "u64"]); });
