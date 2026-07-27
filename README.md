@@ -1,54 +1,44 @@
-# Builder Streak · Stellar Orange Belt
+# BountyFlow · Stellar Orange Belt
 
-Builder Streak is a small production-shaped Stellar dApp built for the Rise In Orange Belt challenge. Builders connect a wallet and log activity on Testnet. The Builder Streak contract authenticates the builder, stores the activity count, emits an event, and calls the Badge Registry contract. The registry validates the caller, stores the derived badge level, and emits its own event.
+BountyFlow is a production-shaped marketplace for Web3 work. Project owners fund a bounty in XLM, builders apply and submit proof, and approval releases escrow while updating an on-chain reputation profile.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  UI[Responsive browser app] -->|Freighter signs| S[Builder Streak]
-  S -->|invoke_contract| R[Badge Registry]
-  S -->|activity event| RPC[Soroban RPC]
-  R -->|badge event| RPC
+  UI[Responsive BountyFlow UI] -->|Freighter signs| E[Bounty Escrow]
+  E -->|native XLM transfer| SAC[Stellar Asset Contract]
+  E -->|record_completion| R[Reputation]
+  E -->|created / applied / submitted / paid| RPC[Soroban RPC]
+  R -->|completion event| RPC
   RPC --> UI
 ```
 
-## Orange Belt checklist
+## Level 3 requirements
 
-- Advanced contract logic: authenticated writes, persistent storage, cross-contract invocation, derived badge levels.
-- Inter-contract communication: `builder-streak` calls `badge-registry` through `Env::invoke_contract`.
-- Event streaming: the UI polls Soroban RPC `getEvents` every 8 seconds and links each event to Stellar Expert.
-- CI/CD: GitHub Actions workflow runs Rust tests, frontend tests, type-checking, and production build.
-- Deployment workflow: `scripts/deploy-testnet.mjs` uploads, deploys, initializes both contracts, and records a first interaction.
-- Responsive frontend: mobile layout, loading states, disabled actions, wallet errors, RPC errors, and transaction links.
-- Tests: two Soroban unit tests plus three frontend tests.
-- Documentation: this README plus deployment metadata in `deployments.testnet.json`.
-
-## Testnet deployment
-
-| Contract | Address |
-| --- | --- |
-| Builder Streak | [`CA5LEQGMOZOSMSEOL5BXJBR3DLDN6G3EVS4EY7AKZ2OYV7MUEH2MB4XW`](https://stellar.expert/explorer/testnet/contract/CA5LEQGMOZOSMSEOL5BXJBR3DLDN6G3EVS4EY7AKZ2OYV7MUEH2MB4XW) |
-| Badge Registry | [`CDXVVODRYJAN5IALGRGX2PDVORKURYAQG5AJNF4M4HCN42RES3OS6TV4`](https://stellar.expert/explorer/testnet/contract/CDXVVODRYJAN5IALGRGX2PDVORKURYAQG5AJNF4M4HCN42RES3OS6TV4) |
-
-First interaction transaction: [`b87b96a3f4c01aa450bb2db7b34c4799e06a955daeed4fb09027e517b08cf7cd`](https://stellar.expert/explorer/testnet/tx/b87b96a3f4c01aa450bb2db7b34c4799e06a955daeed4fb09027e517b08cf7cd)
+- Advanced smart contract logic: funded escrow, lifecycle state machine, authenticated creator/builder actions, deadline validation, refund, payout, and reputation accounting.
+- Inter-contract communication: `bounty-escrow` invokes `reputation.record_completion` only after an approved payout.
+- Event streaming: frontend polls Soroban RPC `getEvents` every 8 seconds and links events to Stellar Expert.
+- CI/CD: GitHub Actions runs Rust formatting, contract tests, frontend tests, type-checking, and the production build.
+- Deployment workflow: `scripts/deploy-testnet.mjs` uploads, deploys, initializes, and seeds the two-contract system with a demo bounty.
+- Mobile responsive frontend: marketplace cards, detail actions, forms, and navigation adapt below 620px.
+- Error/loading states: wallet gating, Friendbot guidance, simulation failures, transaction confirmation, empty states, and disabled actions.
+- Tests: contract lifecycle coverage plus four frontend utility tests.
+- Production architecture: domain contracts, typed conversion helpers, explicit configuration, isolated deployment script, and CI verification.
 
 ## Run locally
 
 ```sh
 pnpm install --no-frozen-lockfile
+cp .env.example .env
 pnpm test
 pnpm build
 pnpm dev
 ```
 
-Copy `.env.example` to `.env` and add the two deployed contract IDs. The app requires a connected Freighter wallet before it loads the profile or enables the `Log activity` transaction flow. Freighter must be configured for Stellar Testnet.
+The app always requires a connected Freighter wallet on Stellar Testnet. A wallet must be funded through [Friendbot](https://friendbot.stellar.org/) before Horizon can load it.
 
-If the app reports that the account was not found, copy the connected `G...` address from Freighter and fund it once with [Stellar Testnet Friendbot](https://friendbot.stellar.org/). An unfunded Testnet account is returned as HTTP 404 by Horizon and cannot submit transactions.
-
-## Deploy a fresh pair
-
-The deploy script requires a funded Testnet identity exposed only for the command invocation:
+## Deploy fresh contracts
 
 ```sh
 cargo test
@@ -56,8 +46,14 @@ stellar contract build --manifest-path Cargo.toml --out-dir artifacts
 env STELLAR_SECRET="$(stellar keys secret alice)" node scripts/deploy-testnet.mjs
 ```
 
-The script writes contract IDs, WASM hashes, deployment hashes, initialization hashes, and the first activity transaction to `deployments.testnet.json`.
+The deployer writes contract IDs, WASM hashes, deployment transaction hashes, initialization transaction hashes, and the seeded demo bounty transaction to `deployments.testnet.json`. Copy the generated IDs into `.env` before running the frontend.
 
-## Submission items still requiring account access
+## End-to-end demo path
 
-The code and deployment are ready locally. A public GitHub URL, hosted Vercel/Netlify URL, and 1–2 minute demo video require the owner’s GitHub/hosting/video accounts, so those are intentionally left as final handoff steps rather than committing credentials or publishing to an account without authorization.
+1. Connect a funded Freighter wallet on Testnet.
+2. Open the seeded bounty and apply from a builder wallet.
+3. Submit a GitHub PR or demo URL as proof.
+4. Switch to the bounty owner wallet and approve the payout.
+5. Confirm the XLM transfer, `paid` event, and Reputation completion event in the live activity feed.
+
+For a public submission, the final account-owned items are the GitHub repository URL, hosted Vercel/Netlify URL, screenshots, and 1–2 minute demo video. No credentials or wallet secrets belong in this repository.
