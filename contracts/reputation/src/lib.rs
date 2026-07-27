@@ -1,6 +1,8 @@
 #![no_std]
 
-use soroban_sdk::{contract, contracterror, contractimpl, contracttype, symbol_short, Address, Env};
+use soroban_sdk::{
+    contract, contracterror, contractimpl, contracttype, symbol_short, Address, Env,
+};
 
 #[derive(Clone)]
 #[contracttype]
@@ -49,18 +51,41 @@ impl Reputation {
             return Err(ReputationError::UnauthorizedCaller);
         }
         caller.require_auth();
-        let completions: u32 = env.storage().persistent().get(&DataKey::Completions(builder.clone())).unwrap_or(0);
-        let earned: i128 = env.storage().persistent().get(&DataKey::Earned(builder.clone())).unwrap_or(0);
-        env.storage().persistent().set(&DataKey::Completions(builder.clone()), &completions.saturating_add(1));
-        env.storage().persistent().set(&DataKey::Earned(builder.clone()), &earned.saturating_add(amount));
-        env.events().publish((symbol_short!("complete"), builder, bounty_id), amount);
+        let completions: u32 = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Completions(builder.clone()))
+            .unwrap_or(0);
+        let earned: i128 = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Earned(builder.clone()))
+            .unwrap_or(0);
+        env.storage().persistent().set(
+            &DataKey::Completions(builder.clone()),
+            &completions.saturating_add(1),
+        );
+        env.storage().persistent().set(
+            &DataKey::Earned(builder.clone()),
+            &earned.saturating_add(amount),
+        );
+        env.events()
+            .publish((symbol_short!("complete"), builder, bounty_id), amount);
         Ok(())
     }
 
     pub fn get_profile(env: Env, builder: Address) -> Profile {
         Profile {
-            completions: env.storage().persistent().get(&DataKey::Completions(builder.clone())).unwrap_or(0),
-            earned: env.storage().persistent().get(&DataKey::Earned(builder)).unwrap_or(0),
+            completions: env
+                .storage()
+                .persistent()
+                .get(&DataKey::Completions(builder.clone()))
+                .unwrap_or(0),
+            earned: env
+                .storage()
+                .persistent()
+                .get(&DataKey::Earned(builder))
+                .unwrap_or(0),
         }
     }
 }
