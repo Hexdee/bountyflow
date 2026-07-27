@@ -1,15 +1,3 @@
-export function shortAddress(address: string): string {
-  return address.length > 12 ? `${address.slice(0, 5)}…${address.slice(-5)}` : address;
-}
-
-export function badgeName(level: number): string {
-  if (level >= 3) return "Master Builder";
-  if (level === 2) return "Orange Builder";
-  if (level === 1) return "Yellow Builder";
-  return "Unranked";
-}
-
-export function formatError(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  return "Something went wrong. Try again.";
-}
+export function shortAddress(value: string) { return value.length < 14 ? value : `${value.slice(0, 5)}…${value.slice(-5)}`; }
+export function stellarFromStroops(value: bigint | number) { return (Number(value) / 10_000_000).toFixed(2); }
+export function formatError(error: unknown) { const message = error instanceof Error ? error.message : String(error); return message.replace(/^Error:\s*/i, "").replace(/simulation failed:\s*/i, ""); }
