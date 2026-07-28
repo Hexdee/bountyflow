@@ -9,8 +9,9 @@
 - [x] Loading, disabled, wallet, simulation, and transaction error states.
 - [x] Contract lifecycle test and frontend test suite.
 - [x] Production architecture documentation and demo script.
-- [ ] Public GitHub repository URL — owner action.
-- [ ] Live Vercel/Netlify URL — owner action.
-- [ ] Final deployed escrow/reputation addresses and payout hash — generate from the deploy script.
+- [x] Public GitHub repository URL — recorded in the README.
+- [x] Live Vercel URL — recorded in the README.
+- [x] Deployed escrow/reputation addresses — recorded in the README and deployment metadata.
+- [ ] Final payout transaction hash — capture after completing the owner approval flow.
 - [ ] Mobile UI screenshot, CI run screenshot, test output screenshot — capture after deployment.
 - [ ] 1–2 minute demo video — record using `docs/demo-script.md`.

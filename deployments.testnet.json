@@ -1,18 +1,20 @@
 {
-  "badgeRegistry": {
-    "contractId": "CDXVVODRYJAN5IALGRGX2PDVORKURYAQG5AJNF4M4HCN42RES3OS6TV4",
-    "deployTxHash": "777de5e21d65af363ac8a56635d96e091969c36f475914a4a436208326206b24",
-    "wasmHash": "c638575224321f9c9ff0058141b55633cef846fde9b7197fccbbe0a29c48483b"
-  },
-  "builderStreak": {
-    "contractId": "CA5LEQGMOZOSMSEOL5BXJBR3DLDN6G3EVS4EY7AKZ2OYV7MUEH2MB4XW",
-    "deployTxHash": "2727bf27252a7c21ce1312f96c8d8f059285024877e43b809f9d393b3c65c9e6",
-    "wasmHash": "0b5c6a40f3c09dfac2317aa7a18fd21ff92417f2ffd9fbcfd14d16259164aa60"
-  },
+  "network": "testnet",
   "admin": "GDLLMOUYQ655IMYFO56ITZLLSX57ZTNKD67GA723E7GMCZJHXJBFXNID",
+  "nativeAsset": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+  "reputation": {
+    "contractId": "CCCRDNK5Z5IRRGGRZ43K3Z6NCCZFCLBYZ7ZTJDEASWEYVIQUS2IKS5YY",
+    "deployTxHash": "15bf22b24e4e10ad828b9ce07555e1b910c65e8d6bb72271f3497aac51c4ea9d",
+    "wasmHash": "1ca40514e96aaa043cd16e4641834a024462b562b761c21b0a5b6b10051cf641"
+  },
+  "bountyEscrow": {
+    "contractId": "CBFJHMUCULC6MDGQLOANO4EWGU4PN3OANUV4FRVAULZABMUZA5F4PFM6",
+    "deployTxHash": "49da5a766c5086507281d9b79f6498dd27bbe0790c861c820bc10ca2061c1b0b",
+    "wasmHash": "add7efd63078866a112fdabcb22905016be015a85fb03f3d9c17971fead29783"
+  },
   "initialization": {
-    "registryInitTxHash": "3d9d300ee597db46a80cbc45bd0520046808dec0bee3aec47990818c157b657e",
-    "streakInitTxHash": "b8f6aa48eda4ab92a6d3717d89203ce030bccaecea6d81db91982b33c3667960",
-    "firstActivityTxHash": "b87b96a3f4c01aa450bb2db7b34c4799e06a955daeed4fb09027e517b08cf7cd"
+    "reputationInitTxHash": "4f4479ea36364bc1c3c2d504ca0f8cd373c4d2663b55f57df10aa58627b40b8b",
+    "escrowInitTxHash": "ba2d2cff7595b5db26adec1fb19c140d5d6ae8206c78945e8fea4c7c4900e9e2",
+    "demoBountyTxHash": "8631c95294ad99c8a585367e8cca9ad89cba6ca42a86396f5709636fe499cbe0"
   }
 }

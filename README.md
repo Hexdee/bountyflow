@@ -2,6 +2,20 @@
 
 BountyFlow is a production-shaped marketplace for Web3 work. Project owners fund a bounty in XLM, builders apply and submit proof, and approval releases escrow while updating an on-chain reputation profile.
 
+## Submission links
+
+- Repository: [github.com/Hexdee/bountyflow](https://github.com/Hexdee/bountyflow)
+- Live demo: [bountyflow-five.vercel.app](https://bountyflow-five.vercel.app)
+
+## Verified Testnet deployment
+
+| Component | Address | Deployment transaction |
+| --- | --- | --- |
+| Bounty Escrow | [`CBFJHMUCULC6MDGQLOANO4EWGU4PN3OANUV4FRVAULZABMUZA5F4PFM6`](https://stellar.expert/explorer/testnet/contract/CBFJHMUCULC6MDGQLOANO4EWGU4PN3OANUV4FRVAULZABMUZA5F4PFM6) | [`49da5a…`](https://stellar.expert/explorer/testnet/tx/49da5a766c5086507281d9b79f6498dd27bbe0790c861c820bc10ca2061c1b0b) |
+| Reputation | [`CCCRDNK5Z5IRRGGRZ43K3Z6NCCZFCLBYZ7ZTJDEASWEYVIQUS2IKS5YY`](https://stellar.expert/explorer/testnet/contract/CCCRDNK5Z5IRRGGRZ43K3Z6NCCZFCLBYZ7ZTJDEASWEYVIQUS2IKS5YY) | [`15bf22…`](https://stellar.expert/explorer/testnet/tx/15bf22b24e4e10ad828b9ce07555e1b910c65e8d6bb72271f3497aac51c4ea9d) |
+
+Seeded demo bounty transaction: [`8631c952…`](https://stellar.expert/explorer/testnet/tx/8631c95294ad99c8a585367e8cca9ad89cba6ca42a86396f5709636fe499cbe0)
+
 ## Architecture
 
 ```mermaid
