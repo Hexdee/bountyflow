@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: 22
       - name: Install frontend dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: Test contracts
         run: cargo test --manifest-path Cargo.toml
       - name: Format contracts
