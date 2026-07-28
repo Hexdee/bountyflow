@@ -2,7 +2,7 @@
   "name": "stellar-level3-hello",
   "private": true,
   "version": "0.1.0",
-  "packageManager": "pnpm@9.15.9",
+  "packageManager": "pnpm@10.12.4",
   "type": "module",
   "scripts": {
     "dev": "vite",
