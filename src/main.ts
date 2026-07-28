@@ -64,7 +64,7 @@ async function write(contractId: string, method: string, args: unknown[], types:
   if (sent.status === "ERROR") throw new Error("The network rejected this transaction.");
   return sent.hash;
 }
-function bountyStatus(value: any) { return typeof value === "object" && value !== null ? Object.keys(value)[0] : String(value); }
+function bountyStatus(value: any) { if (Array.isArray(value)) return String(value[0]); return typeof value === "object" && value !== null ? Object.keys(value)[0] : String(value); }
 function normalized(raw: any) { return { ...raw, id: Number(raw.id), reward: BigInt(raw.reward ?? 0), deadline: Number(raw.deadline), status: bountyStatus(raw.status), builder: raw.builder ?? null, proof: raw.proof ?? null }; }
 function shortText(value: string, length = 90) { return value.length > length ? `${value.slice(0, length - 1)}…` : value; }
 function cardMarkup(b: any) { const mine = b.creator === walletAddress; return `<button class="bounty-card ${b.status.toLowerCase()}" data-id="${b.id}"><div class="card-top"><span class="tag ${b.status.toLowerCase()}">${b.status}</span><span class="bounty-id">#${String(b.id).padStart(3, "0")}</span></div><h3>${b.title}</h3><p>${shortText(b.description)}</p><div class="card-bottom"><span><strong>${stellarFromStroops(b.reward)} XLM</strong><small>escrowed reward</small></span><span class="owner">${mine ? "Your bounty" : shortAddress(b.creator)}</span></div></button>`; }
