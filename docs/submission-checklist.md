@@ -12,6 +12,8 @@
 - [x] Public GitHub repository URL — recorded in the README.
 - [x] Live Vercel URL — recorded in the README.
 - [x] Deployed escrow/reputation addresses — recorded in the README and deployment metadata.
-- [ ] Final payout transaction hash — capture after completing the owner approval flow.
-- [ ] Mobile UI screenshot, CI run screenshot, test output screenshot — capture after deployment.
-- [ ] 1–2 minute demo video — record using `docs/demo-script.md`.
+- [x] Final payout transaction hash — recorded in `docs/submission/README.md`.
+- [x] Mobile UI screenshot — `docs/submission/assets/mobile-responsive-ui.png`.
+- [x] CI run screenshot — `docs/submission/assets/ci-pipeline-passing.png`.
+- [x] Test output screenshot — `docs/submission/assets/frontend-tests-passing.png`.
+- [x] 1–2 minute demo video — [YouTube](https://youtu.be/iA_q78Owg0k).
